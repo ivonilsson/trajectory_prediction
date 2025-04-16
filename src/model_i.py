@@ -135,42 +135,6 @@ class GraphAttentionNetwork(keras.Model):
         outputs = self.output_layer(x)
         return outputs
 
-    """
-    can be removed as its not used, we have custom for this.
-    def train_step(self, data):
-        indices, labels = data
-
-        with tf.GradientTape() as tape:
-            # Forward pass
-            outputs = self([self.node_states, self.edges])
-            # Compute loss
-            loss = self.compiled_loss(labels, tf.gather(outputs, indices))
-        # Compute gradients
-        grads = tape.gradient(loss, self.trainable_weights)
-        # Apply gradients (update weights)
-        self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
-        # Update metric(s)
-        self.compiled_metrics.update_state(labels, tf.gather(outputs, indices))
-
-        return {m.name: m.result() for m in self.metrics}
-
-    def predict_step(self, data):
-        indices = data
-        # Forward pass
-        outputs = self([self.node_states, self.edges])
-        # Compute probabilities
-        return tf.nn.softmax(tf.gather(outputs, indices))
-
-    def test_step(self, data):
-        indices, labels = data
-        # Forward pass
-        outputs = self([self.node_states, self.edges])
-        # Compute loss
-        loss = self.compiled_loss(labels, tf.gather(outputs, indices))
-        # Update metric(s)
-        self.compiled_metrics.update_state(labels, tf.gather(outputs, indices))
-
-        return {m.name: m.result() for m in self.metrics}"""
 
 def train_model_on_separate_scenes(model, train_scenes, epochs=10, learning_rate=1e-3):
     """
