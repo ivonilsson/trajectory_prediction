@@ -71,6 +71,10 @@ def load_data(path='data/dataset/'):
 
         edge_indices = edges[["target", "source"]].applymap(node_idx.get).to_numpy()
 
+        if len(edge_indices) == 0:
+            print(f"Skipping {scene_id} because it has 0 edges after filtering.")
+            continue
+
         features = nodes[["curr_x", "curr_y", "prev_x", "prev_y"]].to_numpy()
         
         #targets: next positions (to predict)
