@@ -33,6 +33,29 @@ def pre_process(path='data/dataset'):
     for f_name in f_names:
         print('FILE NAMES:',f_name) #debugging
 
+def pre_process_full_graph(path='data/dataset', output_path='data/processed/'):
+    """
+    Creates one large graph for all datapoints
+    """
+    os.makedirs(output_path, exist_ok=True)
+
+    # THE IDEA HERE IS TO FIX THE DATA IN ALL THOSE FILES ABOVE SOMEHOW
+    edge_files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.edges')]
+    node_files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.nodes')]
+
+    #scene_ids = sorted(set(f.replace(".nodes", "") for f in os.listdir(path) if f.endswith(".nodes")))
+    print(f"Found {len(edge_files)} edge files and {len(node_files)} node files.")
+
+    df_edges = pd.concat(map(get_edges, edge_files))
+    df_nodes = pd.concat(map(get_nodes, node_files))
+    
+    edges_out = os.path.join(output_path, "full_graph_edges.edges")
+    nodes_out = os.path.join(output_path, "full_graph_nodes.nodes")
+
+    df_edges.to_csv(edges_out, index=False)
+    df_nodes.to_csv(nodes_out, index=False)
+
+
 
 def load_data(path='data/dataset/'):
     """
@@ -87,8 +110,6 @@ def load_data(path='data/dataset/'):
             "edges": edge_indices,
         })
     return traffic_scenes
-
-
 
 def get_edges(f_name):
     if '.edges' in f_name:
