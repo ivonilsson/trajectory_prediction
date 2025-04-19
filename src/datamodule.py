@@ -33,24 +33,110 @@ def pre_process(path='data/dataset'):
     for f_name in f_names:
         print('FILE NAMES:',f_name) #debugging
 
+
+def pre_process_full_graph_ids_and_speed(path='data/dataset', output_path='data/processed/'):
+    """
+    Creates one large graph for all datapoints, and assigns scene IDs.
+    """
+    os.makedirs(output_path, exist_ok=True)
+
+    edge_files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.edges')]
+    node_files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.nodes')]
+
+    edge_files.sort()
+    node_files.sort()
+
+    print(f"Found {len(edge_files)} edge files and {len(node_files)} node files.")
+
+    all_edges = []
+    all_nodes = []
+
+    for scene_idx, (edge_file, node_file) in enumerate(zip(edge_files, node_files)):
+        edges = get_edges(edge_file)
+        nodes = get_nodes(node_file)
+
+        if edges is None or nodes is None:
+            continue
+
+        nodes[["curr_x", "curr_y", "prev_x", "prev_y", "next_x", "next_y"]] = nodes[["curr_x", "curr_y", "prev_x", "prev_y", "next_x", "next_y"]].apply(pd.to_numeric, errors="coerce")
+        
+        # Add scene ID to nodes
+        nodes["scene_id"] = scene_idx
+
+        nodes["speed_x"] = nodes["curr_x"] - nodes["prev_x"]
+        nodes["speed_y"] = nodes["curr_y"] - nodes["prev_y"]
+
+        all_edges.append(edges)
+        all_nodes.append(nodes)
+
+    df_edges = pd.concat(all_edges, ignore_index=True)
+    df_nodes = pd.concat(all_nodes, ignore_index=True)
+
+    edges_out = os.path.join(output_path, "full_graph_w_ids_speed.edges")
+    nodes_out = os.path.join(output_path, "full_graph_w_ids_speed.nodes")
+
+    df_edges.to_csv(edges_out, index=False)
+    df_nodes.to_csv(nodes_out, index=False)
+
+def pre_process_full_graph_ids(path='data/dataset', output_path='data/processed/'):
+    """
+    Creates one large graph for all datapoints, and assigns scene IDs.
+    """
+    os.makedirs(output_path, exist_ok=True)
+
+    edge_files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.edges')]
+    node_files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.nodes')]
+
+    edge_files.sort()
+    node_files.sort()
+
+    print(f"Found {len(edge_files)} edge files and {len(node_files)} node files.")
+
+    all_edges = []
+    all_nodes = []
+
+    for scene_idx, (edge_file, node_file) in enumerate(zip(edge_files, node_files)):
+        edges = get_edges(edge_file)
+        nodes = get_nodes(node_file)
+
+        if edges is None or nodes is None:
+            continue
+
+        # Add scene ID to nodes
+        nodes["scene_id"] = scene_idx
+
+        all_edges.append(edges)
+        all_nodes.append(nodes)
+
+    df_edges = pd.concat(all_edges, ignore_index=True)
+    df_nodes = pd.concat(all_nodes, ignore_index=True)
+
+    edges_out = os.path.join(output_path, "full_graph_w_ids.edges")
+    nodes_out = os.path.join(output_path, "full_graph_w_ids.nodes")
+
+    df_edges.to_csv(edges_out, index=False)
+    df_nodes.to_csv(nodes_out, index=False)
+
+
 def pre_process_full_graph(path='data/dataset', output_path='data/processed/'):
     """
     Creates one large graph for all datapoints
     """
     os.makedirs(output_path, exist_ok=True)
 
-    # THE IDEA HERE IS TO FIX THE DATA IN ALL THOSE FILES ABOVE SOMEHOW
     edge_files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.edges')]
     node_files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith('.nodes')]
 
-    #scene_ids = sorted(set(f.replace(".nodes", "") for f in os.listdir(path) if f.endswith(".nodes")))
+    edge_files.sort()
+    node_files.sort()
+
     print(f"Found {len(edge_files)} edge files and {len(node_files)} node files.")
 
     df_edges = pd.concat(map(get_edges, edge_files))
     df_nodes = pd.concat(map(get_nodes, node_files))
     
-    edges_out = os.path.join(output_path, "full_graph_edges.edges")
-    nodes_out = os.path.join(output_path, "full_graph_nodes.nodes")
+    edges_out = os.path.join(output_path, "full_graph.edges")
+    nodes_out = os.path.join(output_path, "full_graph.nodes")
 
     df_edges.to_csv(edges_out, index=False)
     df_nodes.to_csv(nodes_out, index=False)
@@ -130,7 +216,7 @@ def get_nodes(f_name):
                 f_name,
                 sep=",",
                 header=None,
-                names=["node_id", "curr_x", "curr_y", "prev_x", "prev_y", "next_x", "next_y"]
+                names=["node_id", "curr_x", "curr_y", "prev_x", "prev_y", "next_x", "next_y", "scene_id", "speed_x", "speed_y"]
             )
         return nodes
     else:
