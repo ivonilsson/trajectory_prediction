@@ -1,7 +1,7 @@
 data_dir: "data/dataset"
 
 # hyperparameters
-epochs: 10
+epochs: 3
 learning_rate: 0.01
 batch_size: 128
 
@@ -21,6 +21,7 @@ task_2:
 
 # task 3
 task_3:
+  cosine: true
 
 # plot
 seed: 42

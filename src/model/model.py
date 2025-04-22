@@ -14,6 +14,7 @@ class GraphAttention(layers.Layer):
         kernel_initializer="glorot_uniform",
         kernel_regularizer=None,
         embed_mlp=False,
+        cosine=False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -21,6 +22,7 @@ class GraphAttention(layers.Layer):
         self.kernel_initializer = keras.initializers.get(kernel_initializer)
         self.kernel_regularizer = keras.regularizers.get(kernel_regularizer)
         self.embed_mlp = embed_mlp
+        self.cosine = cosine
         if self.embed_mlp:
             self.mlp = keras.Sequential([
                 layers.Dense(units,
@@ -55,13 +57,28 @@ class GraphAttention(layers.Layer):
             node_states_transformed = self.mlp(node_states)
         else:
             node_states_transformed = tf.matmul(node_states, self.kernel)
-        node_states_expanded = tf.gather(node_states_transformed, edges)
-        node_states_expanded = tf.reshape(
-            node_states_expanded, (tf.shape(edges)[0], -1)
-        )
-        attention_scores = tf.nn.leaky_relu(
-            tf.matmul(node_states_expanded, self.kernel_attention)
-        )
+
+        if self.cosine:
+            # Gather separately
+            node_i = tf.gather(node_states_transformed, edges[:, 0])
+            node_j = tf.gather(node_states_transformed, edges[:, 1])
+
+            # Cosine similarity manually
+            dot_product = tf.reduce_sum(node_i * node_j, axis=-1)
+            norm_i = tf.norm(node_i, axis=-1)
+            norm_j = tf.norm(node_j, axis=-1)
+            cosine_sim = dot_product / (norm_i * norm_j + 1e-8)
+
+            #attention_scores = cosine_sim
+            attention_scores = tf.expand_dims(cosine_sim, axis=-1)
+        else:
+            node_states_expanded = tf.gather(node_states_transformed, edges)
+            node_states_expanded = tf.reshape(
+                node_states_expanded, (tf.shape(edges)[0], -1)
+            )
+            attention_scores = tf.nn.leaky_relu(
+                tf.matmul(node_states_expanded, self.kernel_attention)
+            )
         attention_scores = tf.squeeze(attention_scores, -1)
         attention_scores = tf.math.exp(tf.clip_by_value(attention_scores, -2, 2))
         # normalize without repeat
@@ -81,12 +98,13 @@ class GraphAttention(layers.Layer):
         return out
 
 class MultiHeadGraphAttention(layers.Layer):
-    def __init__(self, units, num_heads=8, merge_type="concat", embed_mlp=False, **kwargs):
+    def __init__(self, units, num_heads=8, merge_type="concat", embed_mlp=False, cosine=False, **kwargs):
         super().__init__(**kwargs)
         self.num_heads = num_heads
         self.merge_type = merge_type
         self.embed_mlp = embed_mlp
-        self.attention_layers = [GraphAttention(units, embed_mlp=embed_mlp) for _ in range(num_heads)]
+        self.cosine = cosine
+        self.attention_layers = [GraphAttention(units, embed_mlp=embed_mlp, cosine=cosine) for _ in range(num_heads)]
 
     def call(self, inputs):
         atom_features, pair_indices = inputs
@@ -111,6 +129,7 @@ class GraphAttentionNetwork(keras.Model):
         output_dim,
         embed_mlp=False,
         top_layer_mlp=False,
+        cosine=False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -118,6 +137,7 @@ class GraphAttentionNetwork(keras.Model):
         self.node_states = node_states
         self.edges = edges
         self.embed_mlp = embed_mlp
+        self.cosine = cosine
         if top_layer_mlp:
             self.preprocess = keras.Sequential([
             layers.Dense(hidden_units * num_heads, activation="relu"),
@@ -126,7 +146,7 @@ class GraphAttentionNetwork(keras.Model):
         else:
             self.preprocess = layers.Dense(hidden_units * num_heads, activation="relu")
         self.attention_layers = [
-            MultiHeadGraphAttention(hidden_units, num_heads, embed_mlp=embed_mlp) for _ in range(num_layers)
+            MultiHeadGraphAttention(hidden_units, num_heads, embed_mlp=embed_mlp, cosine=cosine) for _ in range(num_layers)
         ]
         self.output_layer = layers.Dense(output_dim)
 

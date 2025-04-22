@@ -162,12 +162,56 @@ def main():
                 "Euclidean": f"{eucl:.4f}"
             }
         ]
-        save_path = f"results/task_2_num_heads_{num_heads}"
-        save_results(f"{save_path}.txt", results)
+        save_path = f"task_2_num_heads_{num_heads}"
+        save_results(f"results/{save_path}.txt", results)
 
-        plot_random_test_sub_sample(nodes_df, test_idx, preds_real, truth_real,num_rows=PLOT_ROWS, num_cols=PLOT_COLS, seed=SEED, save_dir=f"{save_path}.png")
+        plot_random_test_sub_sample(nodes_df, test_idx, preds_real, truth_real,num_rows=PLOT_ROWS, num_cols=PLOT_COLS, seed=SEED, save_dir=f"plots/task_2/{save_path}.png")
 
     # task 3 below
+    COSINE = cfg["task_3"]["cosine"]
+
+    model = GraphAttentionNetwork(
+        node_states=node_states,
+        edges=edges_tensor,
+        hidden_units=HIDDEN_UNITS,
+        num_heads=num_heads,
+        num_layers=NUM_LAYERS,
+        output_dim=Y.shape[1],
+        cosine=COSINE
+    )
+    model.compile(
+        optimizer=keras.optimizers.AdamW(learning_rate=LR),
+        loss='mse',
+        metrics=[keras.metrics.MeanAbsoluteError(name='mae')]
+    )
+
+    model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS, verbose=2)
+    label = "Scaled" if SCALED else "Raw"
+    outputs_all = model([node_states, edges_tensor], training=False).numpy()
+    y_pred = outputs_all[test_idx]
+    y_true = Y[test_idx]
+
+    if SCALED:
+        preds_real = y_pred*(maxs_Y-mins_Y+1e-6)+mins_Y
+        truth_real = y_true*(maxs_Y-mins_Y+1e-6)+mins_Y
+    else:
+        preds_real, truth_real = y_pred, y_true
+
+    mse  = np.mean((preds_real - truth_real)**2)
+    mae  = np.mean(np.abs(preds_real - truth_real))
+    eucl = np.mean(np.linalg.norm(preds_real - truth_real, axis=1))
+
+    results = [
+        {
+            "Label": label,
+            "MSE": f"{mse:.4f}",
+            "MAE": f"{mae:.4f}",
+            "Euclidean": f"{eucl:.4f}"
+        }
+    ]
+    save_results(f"results/task_3.txt", results)
+
+    plot_random_test_sub_sample(nodes_df, test_idx, preds_real, truth_real,num_rows=PLOT_ROWS, num_cols=PLOT_COLS, seed=SEED, save_dir="plots/task_3/task_3.png")
 
 if __name__ == '__main__':
     main()
