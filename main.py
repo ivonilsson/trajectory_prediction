@@ -9,6 +9,7 @@ from src.util.utils import save_results
 
 def main():
     # prep
+    print("Running prep work...")
     with open("config/cfg.yaml", "r") as f:
         cfg = yaml.safe_load(f)
 
@@ -65,6 +66,10 @@ def main():
     node_states  = tf.convert_to_tensor(X, tf.float32)
     edges_tensor = tf.convert_to_tensor(edges_idx, tf.int32)
 
+    print("Prep completed.")
+
+    print("Running Task 1...")
+
     model = GraphAttentionNetwork(
         node_states=node_states,
         edges=edges_tensor,
@@ -113,8 +118,10 @@ def main():
     save_results("results/task_1.txt", results)
 
     plot_random_test_sub_sample(nodes_df, test_idx, preds_real, truth_real,num_rows=PLOT_ROWS, num_cols=PLOT_COLS, seed=SEED, save_dir="plots/task_1/task_1.png")
+    print(f"Task 1 completed. Saved results and plot(s).")
 
     # task 2 below
+    print("Running Task 2...")
     NUM_HEADS     = cfg["task_2"]["num_heads"]
     EMBED_MLP     = cfg["task_2"]["embed_mlp"]
     #TOP_LAYER_MLP = cfg["task_2"]["top_layer_mlp"]
@@ -166,8 +173,10 @@ def main():
         save_results(f"results/{save_path}.txt", results)
 
         plot_random_test_sub_sample(nodes_df, test_idx, preds_real, truth_real,num_rows=PLOT_ROWS, num_cols=PLOT_COLS, seed=SEED, save_dir=f"plots/task_2/{save_path}.png")
+        print(f"Task 2 completed. Saved results and plot(s).")
 
     # task 3 below
+    print("Running Task 3...")
     COSINE = cfg["task_3"]["cosine"]
 
     model = GraphAttentionNetwork(
@@ -212,6 +221,7 @@ def main():
     save_results(f"results/task_3.txt", results)
 
     plot_random_test_sub_sample(nodes_df, test_idx, preds_real, truth_real,num_rows=PLOT_ROWS, num_cols=PLOT_COLS, seed=SEED, save_dir="plots/task_3/task_3.png")
+    print(f"Task 3 completed. Saved results and plot(s).")
 
 if __name__ == '__main__':
     main()
