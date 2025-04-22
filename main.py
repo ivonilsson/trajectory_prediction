@@ -57,7 +57,7 @@ def main():
 
     train_ds = tf.data.Dataset.from_tensor_slices((train_idx, Y[train_idx])).batch(BATCH_SIZE)
     val_ds   = tf.data.Dataset.from_tensor_slices((val_idx,   Y[val_idx]  )).batch(BATCH_SIZE)
-    test_ds  = tf.data.Dataset.from_tensor_slices((test_idx,  Y[test_idx] )).batch(BATCH_SIZE)
+    _  = tf.data.Dataset.from_tensor_slices((test_idx,  Y[test_idx] )).batch(BATCH_SIZE)
 
     node_states  = tf.convert_to_tensor(X, tf.float32)
     edges_tensor = tf.convert_to_tensor(edges_idx, tf.int32)
