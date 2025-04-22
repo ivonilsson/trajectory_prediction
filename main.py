@@ -29,6 +29,7 @@ def main():
 
     np.random.seed(SEED)
     tf.random.set_seed(SEED)
+    keras.utils.set_random_seed(SEED)
 
     # task 1 below
     nodes_df, edges_df = load_and_format_data(DATA_DIR)
