@@ -12,7 +12,6 @@ scaled: false
 hidden_units: 32
 num_heads: 4
 num_layers: 2
-output_dim: 2
 
 # plot
 seed: 42

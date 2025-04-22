@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def plot_random_test_sub_sample(nodes_df, test_idx, preds_real, truth_real, num_rows=3, num_cols=3, seed=42):
+def plot_random_test_sub_sample(nodes_df, test_idx, preds_real, truth_real, num_rows=3, num_cols=3, seed=42, save_dir=None):
     np.random.seed(seed)
     n_samples = num_rows * num_cols
     sel = np.random.choice(len(test_idx), size=n_samples, replace=False)
@@ -44,4 +44,7 @@ def plot_random_test_sub_sample(nodes_df, test_idx, preds_real, truth_real, num_
         ax.legend(fontsize='small')
 
     fig.tight_layout()
-    plt.show()
+    if save_dir is None:
+        plt.show()
+    else:
+        plt.savefig(save_dir)
