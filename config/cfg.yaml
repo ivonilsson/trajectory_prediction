@@ -16,7 +16,7 @@ num_layers: 3
 # task 2
 task_2:
   num_heads: [4,8,16]
-  embed_mlp: false
+  embed_mlp: true
   top_layer_mlp: false
 
 # task 3
