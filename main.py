@@ -3,33 +3,33 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from src.model.model import GraphAttentionNetwork
-from src.util.dataset import load_and_format_data
+from src.data_processing.dataset_loader import load_and_format_data
 from src.vis.plots import plot_random_test_sub_sample
-
-with open("config/cfg.yaml", "r") as f:
-    cfg = yaml.safe_load(f)
-
-DATA_DIR      = cfg["data_dir"]
-EPOCHS        = cfg["epochs"]
-LR            = cfg["learning_rate"]
-BATCH_SIZE    = cfg["batch_size"]
-SCALED        = cfg["scaled"]
-
-HIDDEN_UNITS  = cfg["hidden_units"]
-NUM_HEADS     = cfg["num_heads"]
-NUM_LAYERS    = cfg["num_layers"]
-
-EMBED_MLP     = cfg["embed_mlp"]
-TOP_LAYER_MLP = cfg["top_layer_mlp"]
-
-SEED          = cfg["seed"]
-PLOT_ROWS     = cfg["num_plot_rows"]
-PLOT_COLS     = cfg["num_plot_cols"]
-
-np.random.seed(SEED)
-tf.random.set_seed(SEED)
+from src.util.utils import save_results
 
 def main():
+    # prep
+    with open("config/cfg.yaml", "r") as f:
+        cfg = yaml.safe_load(f)
+
+    DATA_DIR      = cfg["data_dir"]
+    EPOCHS        = cfg["epochs"]
+    LR            = cfg["learning_rate"]
+    BATCH_SIZE    = cfg["batch_size"]
+    SCALED        = cfg["scaled"]
+
+    HIDDEN_UNITS  = cfg["hidden_units"]
+    NUM_HEADS     = cfg["num_heads"]
+    NUM_LAYERS    = cfg["num_layers"]
+
+    SEED          = cfg["seed"]
+    PLOT_ROWS     = cfg["num_plot_rows"]
+    PLOT_COLS     = cfg["num_plot_cols"]
+
+    np.random.seed(SEED)
+    tf.random.set_seed(SEED)
+
+    # task 1 below
     nodes_df, edges_df = load_and_format_data(DATA_DIR)
     print(f"Nodes: {nodes_df.shape}, Edges: {edges_df.shape}")
 
@@ -72,15 +72,19 @@ def main():
         num_heads=NUM_HEADS,
         num_layers=NUM_LAYERS,
         output_dim=Y.shape[1],
-        embed_mlp=EMBED_MLP,
-        top_layer_mlp=TOP_LAYER_MLP
     )
     model.compile(
         optimizer=keras.optimizers.AdamW(learning_rate=LR),
         loss='mse',
         metrics=[keras.metrics.MeanAbsoluteError(name='mae')]
     )
-    model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS, verbose=2)
+    earlystop_cb = keras.callbacks.EarlyStopping(
+        monitor='val_loss',
+        patience=20,
+        restore_best_weights=True,
+        verbose=1
+    )
+    model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS, callbacks=[earlystop_cb], verbose=2)
 
     label = "Scaled" if SCALED else "Raw"
 
@@ -94,13 +98,76 @@ def main():
     else:
         preds_real, truth_real = y_pred, y_true
 
-    mse   = np.mean((preds_real - truth_real)**2)
-    mae   = np.mean(np.abs(preds_real - truth_real))
-    eucl  = np.mean(np.linalg.norm(preds_real - truth_real, axis=1))
+    mse  = np.mean((preds_real - truth_real)**2)
+    mae  = np.mean(np.abs(preds_real - truth_real))
+    eucl = np.mean(np.linalg.norm(preds_real - truth_real, axis=1))
 
-    print(f"{label} Test →  MSE: {mse:.4f}, MAE: {mae:.4f}, Euclid: {eucl:.4f}")
+    results = [
+        {
+            "Label": label,
+            "MSE": f"{mse:.4f}",
+            "MAE": f"{mae:.4f}",
+            "Euclidean": f"{eucl:.4f}"
+        }
+    ]
+    save_results("results/task_1.txt", results)
 
-    plot_random_test_sub_sample(nodes_df, test_idx, preds_real, truth_real,num_rows=PLOT_ROWS, num_cols=PLOT_COLS, seed=SEED, save_dir="plots/task1.png")
+    plot_random_test_sub_sample(nodes_df, test_idx, preds_real, truth_real,num_rows=PLOT_ROWS, num_cols=PLOT_COLS, seed=SEED, save_dir="plots/task_1/task_1.png")
+
+    # task 2 below
+    NUM_HEADS     = cfg["task_2"]["num_heads"]
+    EMBED_MLP     = cfg["task_2"]["embed_mlp"]
+    #TOP_LAYER_MLP = cfg["task_2"]["top_layer_mlp"]
+
+    for num_heads in NUM_HEADS:
+        print(f"Initializing GAN with {num_heads} number of attention heads.")
+        model = GraphAttentionNetwork(
+            node_states=node_states,
+            edges=edges_tensor,
+            hidden_units=HIDDEN_UNITS,
+            num_heads=num_heads,
+            num_layers=NUM_LAYERS,
+            output_dim=Y.shape[1],
+            embed_mlp=EMBED_MLP,
+            #top_layer_mlp=TOP_LAYER_MLP
+        )
+        model.compile(
+            optimizer=keras.optimizers.AdamW(learning_rate=LR),
+            loss='mse',
+            metrics=[keras.metrics.MeanAbsoluteError(name='mae')]
+        )
+        model.fit(train_ds, validation_data=val_ds, epochs=EPOCHS, verbose=2)
+
+        label = "Scaled" if SCALED else "Raw"
+
+        outputs_all = model([node_states, edges_tensor], training=False).numpy()
+        y_pred = outputs_all[test_idx]
+        y_true = Y[test_idx]
+
+        if SCALED:
+            preds_real = y_pred*(maxs_Y-mins_Y+1e-6)+mins_Y
+            truth_real = y_true*(maxs_Y-mins_Y+1e-6)+mins_Y
+        else:
+            preds_real, truth_real = y_pred, y_true
+
+        mse  = np.mean((preds_real - truth_real)**2)
+        mae  = np.mean(np.abs(preds_real - truth_real))
+        eucl = np.mean(np.linalg.norm(preds_real - truth_real, axis=1))
+
+        results = [
+            {
+                "Label": label,
+                "MSE": f"{mse:.4f}",
+                "MAE": f"{mae:.4f}",
+                "Euclidean": f"{eucl:.4f}"
+            }
+        ]
+        save_path = f"results/task_2_num_heads_{num_heads}"
+        save_results(f"{save_path}.txt", results)
+
+        plot_random_test_sub_sample(nodes_df, test_idx, preds_real, truth_real,num_rows=PLOT_ROWS, num_cols=PLOT_COLS, seed=SEED, save_dir=f"{save_path}.png")
+
+    # task 3 below
 
 if __name__ == '__main__':
     main()

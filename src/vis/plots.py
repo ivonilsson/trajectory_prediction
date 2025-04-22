@@ -1,3 +1,4 @@
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -47,4 +48,7 @@ def plot_random_test_sub_sample(nodes_df, test_idx, preds_real, truth_real, num_
     if save_dir is None:
         plt.show()
     else:
+        out_dir = os.path.dirname(save_dir)
+        if out_dir and not os.path.exists(out_dir):
+            os.makedirs(out_dir, exist_ok=True)
         plt.savefig(save_dir)
