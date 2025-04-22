@@ -79,11 +79,6 @@ def main():
 
     label = "Scaled" if SCALED else "Raw"
 
-    metrics = model.evaluate(test_ds, verbose=0, return_dict=True)
-
-    #loss = metrics['loss']
-    #mae = metrics['compile_metrics']['mae']
-
     outputs_all = model([node_states, edges_tensor], training=False).numpy()
     y_pred = outputs_all[test_idx]
     y_true = Y[test_idx]
