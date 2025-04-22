@@ -9,19 +9,22 @@ from src.vis.plots import plot_random_test_sub_sample
 with open("config/cfg.yaml", "r") as f:
     cfg = yaml.safe_load(f)
 
-DATA_DIR     = cfg["data_dir"]
-EPOCHS       = cfg["epochs"]
-LR           = cfg["learning_rate"]
-BATCH_SIZE   = cfg["batch_size"]
-SCALED       = cfg["scaled"]
+DATA_DIR      = cfg["data_dir"]
+EPOCHS        = cfg["epochs"]
+LR            = cfg["learning_rate"]
+BATCH_SIZE    = cfg["batch_size"]
+SCALED        = cfg["scaled"]
 
-HIDDEN_UNITS = cfg["hidden_units"]
-NUM_HEADS    = cfg["num_heads"]
-NUM_LAYERS   = cfg["num_layers"]
+HIDDEN_UNITS  = cfg["hidden_units"]
+NUM_HEADS     = cfg["num_heads"]
+NUM_LAYERS    = cfg["num_layers"]
 
-SEED         = cfg["seed"]
-PLOT_ROWS    = cfg["num_plot_rows"]
-PLOT_COLS    = cfg["num_plot_cols"]
+EMBED_MLP     = cfg["embed_mlp"]
+TOP_LAYER_MLP = cfg["top_layer_mlp"]
+
+SEED          = cfg["seed"]
+PLOT_ROWS     = cfg["num_plot_rows"]
+PLOT_COLS     = cfg["num_plot_cols"]
 
 np.random.seed(SEED)
 tf.random.set_seed(SEED)
@@ -68,7 +71,9 @@ def main():
         hidden_units=HIDDEN_UNITS,
         num_heads=NUM_HEADS,
         num_layers=NUM_LAYERS,
-        output_dim=Y.shape[1]
+        output_dim=Y.shape[1],
+        embed_mlp=EMBED_MLP,
+        top_layer_mlp=TOP_LAYER_MLP
     )
     model.compile(
         optimizer=keras.optimizers.AdamW(learning_rate=LR),

@@ -13,12 +13,24 @@ class GraphAttention(layers.Layer):
         units,
         kernel_initializer="glorot_uniform",
         kernel_regularizer=None,
+        embed_mlp=False,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.units = units
         self.kernel_initializer = keras.initializers.get(kernel_initializer)
         self.kernel_regularizer = keras.regularizers.get(kernel_regularizer)
+        self.embed_mlp = embed_mlp
+        if self.embed_mlp:
+            self.mlp = keras.Sequential([
+                layers.Dense(units,
+                            activation="relu",
+                            kernel_initializer=self.kernel_initializer,
+                            kernel_regularizer=self.kernel_regularizer),
+                layers.Dense(units,
+                            kernel_initializer=self.kernel_initializer,
+                            kernel_regularizer=self.kernel_regularizer),
+            ])
 
     def build(self, input_shape):
         self.kernel = self.add_weight(
@@ -39,7 +51,10 @@ class GraphAttention(layers.Layer):
 
     def call(self, inputs):
         node_states, edges = inputs
-        node_states_transformed = tf.matmul(node_states, self.kernel)
+        if self.embed_mlp:
+            node_states_transformed = self.mlp(node_states)
+        else:
+            node_states_transformed = tf.matmul(node_states, self.kernel)
         node_states_expanded = tf.gather(node_states_transformed, edges)
         node_states_expanded = tf.reshape(
             node_states_expanded, (tf.shape(edges)[0], -1)
@@ -66,11 +81,12 @@ class GraphAttention(layers.Layer):
         return out
 
 class MultiHeadGraphAttention(layers.Layer):
-    def __init__(self, units, num_heads=8, merge_type="concat", **kwargs):
+    def __init__(self, units, num_heads=8, merge_type="concat", embed_mlp=False, **kwargs):
         super().__init__(**kwargs)
         self.num_heads = num_heads
         self.merge_type = merge_type
-        self.attention_layers = [GraphAttention(units) for _ in range(num_heads)]
+        self.embed_mlp = embed_mlp
+        self.attention_layers = [GraphAttention(units, embed_mlp=embed_mlp) for _ in range(num_heads)]
 
     def call(self, inputs):
         atom_features, pair_indices = inputs
@@ -84,9 +100,6 @@ class MultiHeadGraphAttention(layers.Layer):
             x = tf.reduce_mean(tf.stack(outputs, axis=-1), axis=-1)
         return tf.nn.relu(x)
 
-# -----------------------
-# 3. GRAPH ATTENTION NETWORK with custom train/test
-# -----------------------
 class GraphAttentionNetwork(keras.Model):
     def __init__(
         self,
@@ -96,15 +109,24 @@ class GraphAttentionNetwork(keras.Model):
         num_heads,
         num_layers,
         output_dim,
+        embed_mlp=False,
+        top_layer_mlp=False,
         **kwargs,
     ):
         super().__init__(**kwargs)
         # original tutorial names
         self.node_states = node_states
         self.edges = edges
-        self.preprocess = layers.Dense(hidden_units * num_heads, activation="relu")
+        self.embed_mlp = embed_mlp
+        if top_layer_mlp:
+            self.preprocess = keras.Sequential([
+            layers.Dense(hidden_units * num_heads, activation="relu"),
+            layers.Dense(hidden_units * num_heads),
+            ])
+        else:
+            self.preprocess = layers.Dense(hidden_units * num_heads, activation="relu")
         self.attention_layers = [
-            MultiHeadGraphAttention(hidden_units, num_heads) for _ in range(num_layers)
+            MultiHeadGraphAttention(hidden_units, num_heads, embed_mlp=embed_mlp) for _ in range(num_layers)
         ]
         self.output_layer = layers.Dense(output_dim)
 
